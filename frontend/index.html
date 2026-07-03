@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>InterDoc — Document Intelligence</title>
+    <style>
+        :root {
+            --bg: #0b0c0f;
+            --panel: #0f1114;
+            --muted: #95a0b3;
+            --accent: #7c5cff;
+            --glass: rgba(255, 255, 255, 0.03);
+            --radius: 12px;
+            --shadow: 0 6px 24px rgba(2, 6, 23, 0.6);
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, "Helvetica Neue", Arial
+        }
+
+        body {
+            background: linear-gradient(180deg, #06060a 0%, #0b0c0f 100%);
+            color: #e6eef8
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            height: 100vh;
+            padding: 28px
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, var(--panel), #0b0c0f);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            display: flex;
+            flex-direction: column
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px
+        }
+
+        .logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #5cc1ff);
+            font-size: 18px
+        }
+
+        .title {
+            font-size: 16px;
+            font-weight: 700
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .upload {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 10px;
+            background: var(--glass);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 10px
+        }
+
+        .upload .drop {
+            border: 2px dashed rgba(255, 255, 255, 0.03);
+            padding: 18px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer
+        }
+
+        .upload .hint {
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center
+        }
+
+        .docs {
+            margin-top: 12px;
+            overflow: auto
+        }
+
+        .doc-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent)
+        }
+
+        .doc-name {
+            font-size: 13px
+        }
+
+        .doc-meta {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .progress-wrap {
+            width: 160px;
+            background: rgba(255, 255, 255, 0.02);
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.02)
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #5cc1ff);
+            width: 0%;
+            transition: width 200ms ease
+        }
+
+        /* Main chat */
+        .panel {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            padding: 18px
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02)
+        }
+
+        .chat-title {
+            font-weight: 700
+        }
+
+        .chat-body {
+            flex: 1;
+            overflow: auto;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px
+        }
+
+        .message {
+            max-width: 78%;
+            display: flex;
+            gap: 12px
+        }
+
+        .message.user {
+            margin-left: auto;
+            align-items: flex-end
+        }
+
+        .bubble {
+            padding: 12px 14px;
+            border-radius: 14px;
+            line-height: 1.45;
+            box-shadow: 0 6px 18px rgba(2, 6, 23, 0.5)
+        }
+
+        .bubble.user {
+            background: linear-gradient(135deg, var(--accent), #4ea8ff);
+            color: white;
+            border-radius: 16px 16px 4px 16px
+        }
+
+        .bubble.assistant {
+            background: linear-gradient(180deg, #0f1418, #0b1114);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            color: #dbe9ff
+        }
+
+        .citation {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+            background: rgba(124, 92, 255, 0.08);
+            border: 1px solid rgba(124, 92, 255, 0.14);
+            padding: 6px 8px;
+            border-radius: 999px;
+            color: #cfc9ff;
+            font-size: 12px
+        }
+
+        .citation .source {
+            font-weight: 600
+        }
+
+        /* typing/loading dots inside assistant bubble */
+        .typing-dots {
+            display: inline-flex;
+            gap: 6px;
+            align-items: center
+        }
+
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: rgba(219, 233, 255, 0.14);
+            animation: typingBounce 1s infinite
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: .12s
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: .24s
+        }
+
+        @keyframes typingBounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(.8);
+                opacity: .45
+            }
+
+            40% {
+                transform: scale(1);
+                opacity: 1
+            }
+        }
+
+        /* message + bubble entrance animations */
+        .message {
+            opacity: 0;
+            transform: translateY(10px);
+            animation: messageIn 320ms cubic-bezier(.2, .9, .2, 1) forwards
+        }
+
+        @keyframes messageIn {
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .bubble {
+            transition: transform 220ms ease, box-shadow 220ms ease, background 220ms ease;
+            will-change: transform
+        }
+
+        /* citation fade-in */
+        .citation {
+            opacity: 0;
+            transform: translateY(6px);
+            animation: citationIn 300ms ease forwards;
+            animation-delay: 140ms
+        }
+
+        @keyframes citationIn {
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        /* subtle hover states */
+        .doc-item:hover {
+            transform: translateX(4px);
+            transition: transform 160ms ease
+        }
+
+        #dropZone:hover {
+            background: rgba(124, 92, 255, 0.06);
+            transform: translateY(-2px);
+            transition: all 180ms ease
+        }
+
+        .composer {
+            display: flex;
+            gap: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.02)
+        }
+
+        textarea {
+            flex: 1;
+            min-height: 48px;
+            max-height: 160px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            background: transparent;
+            color: inherit;
+            resize: none
+        }
+
+        .btn {
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer
+        }
+
+        .meta-small {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        /* small screens */
+        @media (max-width:900px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-auto-rows: auto;
+                padding: 16px
+            }
+
+            .sidebar {
+                order: 2
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo">ID</div>
+                <div>
+                    <div class="title">InterDoc</div>
+                    <div class="subtitle">Ask smart questions about your documents</div>
+                </div>
+            </div>
+
+            <div class="upload" id="uploadPanel">
+                <div id="dropZone" class="drop">📁 Drop files or click to upload</div>
+                <div class="hint">Supported: PDF, TXT, DOCX. Files are processed into chunks for retrieval.</div>
+            </div>
+
+            <div style="margin-top:14px">
+                <div class="meta-small">Uploaded Documents</div>
+            </div>
+            <div class="docs" id="documentsList" aria-live="polite"></div>
+            <input id="fileInput" type="file" multiple style="display:none" accept=".pdf,.txt,.doc,.docx">
+        </aside>
+
+        <main class="panel">
+            <div class="chat-header">
+                <div>
+                    <div class="chat-title">InterDoc Chat</div>
+                    <div class="meta-small">Answers are grounded in your uploaded content with citations</div>
+                </div>
+                <div class="meta-small">API: 127.0.0.1:8000</div>
+            </div>
+
+            <div class="chat-body" id="chatBody">
+                <div style="text-align:center;color:var(--muted);margin-top:40px">
+                    <div style="font-size:40px;opacity:0.9">💬</div>
+                    <div style="font-weight:700;margin-top:10px">Ask questions about your documents</div>
+                    <div class="meta-small" style="margin-top:6px">Upload files on the left to get started</div>
+                </div>
+            </div>
+
+            <div class="composer">
+                <textarea id="prompt" placeholder="Type your question and press Enter..." rows="1"></textarea>
+                <button id="sendBtn" class="btn">Send</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000';
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const documentsList = document.getElementById('documentsList');
+        const chatBody = document.getElementById('chatBody');
+        const prompt = document.getElementById('prompt');
+        const sendBtn = document.getElementById('sendBtn');
+
+        let documents = [];
+        let isLoading = false;
+
+        function renderDocs() {
+            if (!documents.length) {
+                documentsList.innerHTML = '<div style="color:var(--muted);padding:12px">No documents uploaded</div>';
+                return;
+            }
+            documentsList.innerHTML = documents.map(d => {
+                // show progress bar for uploading entries
+                if (d.uploading) {
+                    const pct = (typeof d.progress === 'number') ? d.progress : 0;
+                    return `
+                                        <div class="doc-item">
+                                            <div style="min-width:0">
+                                                <div class="doc-name">${escapeHtml(d.filename)}</div>
+                                                <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                                                    <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%"></div></div>
+                                                    <div class="doc-meta">Uploading ${pct}%</div>
+                                                </div>
+                                            </div>
+                                            <div class="doc-meta">${d.uploadedAt}</div>
+                                        </div>`;
+                }
+
+                return `<div class="doc-item"><div><div class="doc-name">${escapeHtml(d.filename)}</div><div class="doc-meta">${d.chunks} chunk${d.chunks !== 1 ? 's' : ''}</div></div><div class="doc-meta">${d.uploadedAt}</div></div>`
+            }).join('');
+        }
+
+        function escapeHtml(s) { return String(s).replace(/[&<>\\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
+
+        // Drag & drop
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'rgba(124,92,255,0.9)' });
+        dropZone.addEventListener('dragleave', e => { dropZone.style.borderColor = 'rgba(255,255,255,0.03)' });
+        dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.style.borderColor = 'rgba(255,255,255,0.03)'; handleFiles(e.dataTransfer.files) });
+        fileInput.addEventListener('change', e => { handleFiles(e.target.files); e.target.value = '' });
+
+        async function handleFiles(files) {
+            for (const f of files) {
+                await uploadFile(f);
+            }
+        }
+
+        async function uploadFile(file) {
+            const tempId = Math.random().toString(36).slice(2, 9);
+            // mark as uploading with progress
+            documents.unshift({ filename: file.name, chunks: '...', uploadedAt: 'Uploading...', id: tempId, uploading: true, progress: 0 });
+            renderDocs();
+
+            const form = new FormData();
+            form.append('file', file);
+
+            // use XHR for progress
+            await new Promise((resolve) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', API_BASE + '/upload');
+
+                xhr.upload.onprogress = function (e) {
+                    if (e.lengthComputable) {
+                        const pct = Math.round((e.loaded / e.total) * 100);
+                        documents = documents.map(d => d.id === tempId ? Object.assign({}, d, { progress: pct }) : d);
+                        renderDocs();
+                    }
+                };
+
+                xhr.onload = function () {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            documents = documents.map(d => d.id === tempId ? { filename: data.filename, chunks: data.chunks_created, uploadedAt: (new Date()).toLocaleString() } : d);
+                            renderDocs();
+                        } catch (err) {
+                            documents = documents.filter(d => d.id !== tempId);
+                            renderDocs();
+                            notify('Upload parse error');
+                        }
+                    } else {
+                        documents = documents.filter(d => d.id !== tempId);
+                        renderDocs();
+                        notify('Upload failed: ' + xhr.statusText || xhr.status);
+                    }
+                    resolve();
+                };
+
+                xhr.onerror = function () {
+                    documents = documents.filter(d => d.id !== tempId);
+                    renderDocs();
+                    notify('Upload network error');
+                    resolve();
+                };
+
+                xhr.send(form);
+            });
+        }
+
+        // Chat
+        sendBtn.addEventListener('click', sendQuestion);
+        prompt.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(); } });
+
+        async function sendQuestion() {
+            const q = prompt.value.trim();
+            if (!q || isLoading) return;
+            appendMessage(q, 'user');
+            prompt.value = '';
+            isLoading = true; sendBtn.disabled = true;
+            const loadingMsg = appendMessage('Thinking...', 'assistant', true);
+            try {
+                const res = await fetch(API_BASE + '/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) });
+                if (!res.ok) throw new Error('Query failed');
+                const data = await res.json();
+                // replace loading with answer (with smooth reveal)
+                const bubbleEl = loadingMsg.querySelector('.bubble');
+                bubbleEl.textContent = data.answer || 'No answer';
+                // gentle reveal animation
+                bubbleEl.style.opacity = '0';
+                bubbleEl.style.transform = 'translateY(6px)';
+                requestAnimationFrame(() => {
+                    bubbleEl.style.transition = 'opacity 260ms ease, transform 260ms ease';
+                    bubbleEl.style.opacity = '1';
+                    bubbleEl.style.transform = 'translateY(0)';
+                });
+                // citations
+                if (data.sources && data.sources.length) {
+                    const wrap = document.createElement('div');
+                    wrap.style.marginTop = '8px';
+                    data.sources.forEach(s => {
+                        const tag = document.createElement('div'); tag.className = 'citation';
+                        tag.innerHTML = `<span class="source">${escapeHtml(s.source)}</span>&nbsp;<span style="opacity:.8">(chunk ${s.chunk_index})</span>`;
+                        wrap.appendChild(tag);
+                    });
+                    loadingMsg.appendChild(wrap);
+                }
+                // ensure the answer is visible without manual scrolling
+                loadingMsg.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+            } catch (err) {
+            loadingMsg.querySelector('.bubble').textContent = 'Failed to get answer';
+            notify('Query error: ' + err.message);
+        } finally { isLoading = false; sendBtn.disabled = false; scrollToBottom(); }
+        }
+
+        function appendMessage(text, role, dim = false) {
+            const wrap = document.createElement('div');
+            wrap.className = 'message ' + (role === 'user' ? 'user' : '');
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'assistant');
+
+            // Render animated typing dots for assistant when dim/loading flag is set
+            if (dim && role !== 'user') {
+                bubble.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
+            } else {
+                bubble.textContent = text;
+            }
+
+            wrap.appendChild(bubble);
+            const container = chatBody;
+            container.appendChild(wrap);
+            // smooth auto-scroll to show new message without user action
+            scrollToBottom(true);
+            return wrap;
+        }
+
+        function scrollToBottom(smooth = true) {
+            try {
+                if (smooth && chatBody.scrollTo) {
+                    chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+                } else {
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                }
+            } catch (e) {
+                chatBody.scrollTop = chatBody.scrollHeight;
+            }
+        }
+
+        function notify(msg) {
+            const n = document.createElement('div'); n.textContent = msg; n.style.position = 'fixed'; n.style.right = '20px'; n.style.bottom = '20px'; n.style.background = '#111'; n.style.color = '#fff'; n.style.padding = '12px 16px'; n.style.borderRadius = '8px'; n.style.boxShadow = '0 8px 30px rgba(2,6,23,0.6)'; document.body.appendChild(n);
+            setTimeout(() => n.remove(), 4200);
+        }
+
+        // initial render
+        renderDocs();
+    </script>
+</body>
+
+</html>
